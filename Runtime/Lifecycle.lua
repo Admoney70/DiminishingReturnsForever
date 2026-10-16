@@ -13,6 +13,13 @@ function ns.PrintStatus()
         s.native, s.nativePublic, s.nativePartial, s.nativeSecret, s.nativeOpaque, s.nativeUnknownCategory))
     ns.Print(string.format("Auras applied %d ended %d; casts %d, group %d; confirmed %d, assumed %d, missed %d, immune hits %d, signals %d",
         s.auraApplied, s.auraEnded, s.casts, s.groupCasts, s.confirmed, s.assumed, s.notLanded, s.immuneHits, s.signals))
+    local friends = {}
+    for _, unit in ipairs(ns.FRIEND_UNITS) do
+        if ns.WatchedUnits()[unit] then friends[#friends + 1] = unit end
+    end
+    ns.Print(string.format("Friendly DR %s; watching %s; friendly auras %d, loss of control on you %d",
+        ns.db.friendly and "on" or "off", #friends > 0 and table.concat(friends, ", ") or "nobody",
+        s.friendlyAuras, s.lossApplied))
     local enabled, onlyMine = ns.GetBlizzardOption(ns.CVAR_ENABLED), ns.GetBlizzardOption(ns.CVAR_ONLY_MINE)
     ns.Print("Blizzard options: enemies " .. tostring(enabled) .. ", only mine " .. tostring(onlyMine))
     local names = {}
@@ -34,6 +41,7 @@ local function PrintHelp()
     print("/drpulse clear - forget every tracked DR")
     print("/drpulse all - show every category")
     print("/drpulse mine - show only categories you can apply")
+    print("/drpulse friendly - turn friendly DR (you and your party) on or off")
     print("/drpulse status - show the version, build and what the addon sees")
 end
 
@@ -51,6 +59,9 @@ local function Command(message)
     elseif command == "clear" then ns.ClearTracking(); ns.Print("Tracked DR cleared.")
     elseif command == "all" then ns.Set("filter", "all"); ns.Print("Showing every category.")
     elseif command == "mine" then ns.Set("filter", "mine"); ns.Print("Showing only categories you can apply.")
+    elseif command == "friendly" or command == "friends" then
+        ns.Set("friendly", not ns.db.friendly)
+        ns.Print("Friendly DR " .. (ns.db.friendly and "on." or "off."))
     elseif command == "status" then ns.PrintStatus()
     else
         PrintHelp()
@@ -79,6 +90,7 @@ events:SetScript("OnEvent", function(self, event, name)
         SlashCmdList.DRPULSE = Command
         if paused or not ns.db then return end
         ns.StartDisplay()
+        ns.StartFriendly()
         ns.StartSources()
         ns.BuildSettings()
         ns.StartDrpulseIntegration()

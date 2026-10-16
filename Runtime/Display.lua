@@ -672,13 +672,15 @@ function Refresh()
     local now = GetTime()
     if not ns.db.enabled then
         target:Hide()
+        if ns.HideFriendly then ns.HideFriendly() end
         RefreshPlates(now)
         driver:SetScript("OnUpdate", nil)
         return
     end
     local shown = RefreshTarget(now)
     local plateShown = RefreshPlates(now)
-    local live = shown or plateShown or ns.tracker:HasLive(now) or now < previewUntil
+    local friendlyShown = ns.RefreshFriendly and ns.RefreshFriendly(now) or false
+    local live = shown or plateShown or friendlyShown or ns.tracker:HasLive(now) or now < previewUntil
     if not live then ns.tracker:Prune(now) end
     -- Timers tick only while something is on screen or still counting down.
     driver:SetScript("OnUpdate", live and ns.OnDisplayUpdate or nil)

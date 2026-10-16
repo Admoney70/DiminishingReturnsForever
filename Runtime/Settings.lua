@@ -36,7 +36,7 @@ local SECTION_LABELS = {
     tools = "TOOLS", guide = "GUIDE",
 }
 local SECTION_OF = {
-    Displays = "general", ["What to show"] = "general",
+    Displays = "general", ["Friendly DR"] = "general", ["What to show"] = "general",
     Categories = "appearance", ["Size and placement"] = "appearance", ["Icon style"] = "appearance",
     ["Tracking sources"] = "detection", ["Blizzard data"] = "detection",
     ["Custom spells"] = "tools", Advanced = "tools", Diagnostics = "tools",
@@ -1157,7 +1157,7 @@ local function Build()
     command:SetTextColor(0.72, 0.89, 0.96)
     local purpose = brand:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     purpose:SetPoint("TOPLEFT", 16, -29)
-    purpose:SetText("Enemy diminishing returns control deck")
+    purpose:SetText("Enemy and friendly diminishing returns control deck")
     purpose:SetTextColor(0.67, 0.73, 0.78)
     local status = brand:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     status:SetPoint("BOTTOMLEFT", 16, 9)
@@ -1180,6 +1180,7 @@ local function Build()
         local where = {}
         if ns.db.target then where[#where + 1] = "target" end
         if ns.db.nameplates then where[#where + 1] = "nameplates" end
+        if ns.db.friendly then where[#where + 1] = "friendly" end
         return "On · " .. (#where > 0 and table.concat(where, ", ") or "no display")
             .. (ns.db.npcs and " · NPCs" or "") .. (ns.db.locked and "" or " · unlocked")
     end, "Where the DR icons show, and the target display's place.")
@@ -1201,6 +1202,22 @@ local function Build()
             or " Preview 20 s shows sample icons (50%, 25% and immune) on it without affecting tracking."))
     targetDisplay:Button(C1, "Reset position", TwoClicks("Reset position", function() ns.ResetPosition() end))
     if not kit then targetDisplay:Button(C2, "Preview 20 s", function() ns.Preview(20) end) end
+
+    page.Group("Friendly DR", true, function()
+        if not ns.db.friendly then return "Off" end
+        local watched = 0
+        for _, unit in ipairs(ns.FRIEND_UNITS) do
+            if ns.WatchedUnits()[unit] then watched = watched + 1 end
+        end
+        return "On · " .. (ns.db.friendlyPlayer and "you and " or "") .. "party · watching " .. watched
+            .. " · " .. ns.db.friendlySize .. " px"
+    end, "DR on you and your party members, in a display of its own: a row per player with DR, hidden while nobody has any.")
+    page.Row("Track friendly DR", "Track the DR enemies put on you and your party, and show it in the friendly display: one row per player, their name, then their DR icons. It moves and locks with Lock target display; /drpulse friendly turns it on or off. Every category shows there unless set to Never under Categories.")
+        :Toggle(C1, "friendly")
+    page.Row("Include yourself", "Show a row for your own DR. Your own crowd control comes from Loss of control on you (Tracking sources), which Forever keeps readable for you even where auras are secret.")
+        :Toggle(C1, "friendlyPlayer")
+    page.Row("Friendly icon size", "Size of the icons in the friendly display.")
+        :Slider(C1, "friendlySize", 1, " px")
 
     page.Group("What to show", true, function()
         if ns.db.filter ~= "mine" then return "Every category" end
@@ -1272,6 +1289,8 @@ local function Build()
         :Toggle(C1, Source("group"))
     page.Row("Immune / resist feedback", "An IMMUNE response to your CC when the enemy is one application from immunity marks the category immune. A miss or resist cancels an unconfirmed cast.")
         :Toggle(C1, Source("feedback"))
+    page.Row("Loss of control on you", "Your own loss-of-control effects (the alert in the middle of the screen) for friendly DR: exact spell, start and length, readable for you even where CC auras are secret. A spell outside the catalog counts only when its effect type has one DR category (stun, root, silence, disarm).")
+        :Toggle(C1, Source("loss"))
     page.Row("Show unconfirmed casts", "If nothing can confirm whether your CC landed, count it anyway. Its timer is grey (the Icon style preview shows one). Casts are never assumed when a confirming source was available and stayed silent.")
         :Toggle(C1, Source("assume"))
     page.Row("DR reset time", "Seconds after the last CC in a category ends before its DR resets (10 to 30; 18 by default).")
@@ -1419,6 +1438,8 @@ local function Build()
         function() return string.format("%d (%d readable)", ns.stats.native, ns.stats.nativePublic) end)
     Counter("CC auras", "Readable CC auras seen landing on tracked enemies.",
         function() return tostring(ns.stats.auraApplied) end)
+    Counter("Friendly CC", "CC seen landing on you and your party: readable CC auras on them, and your own loss-of-control effects.",
+        function() return string.format("%d auras, %d on you", ns.stats.friendlyAuras, ns.stats.lossApplied) end)
     Counter("CC casts", "CC casts seen from you, your pet and your group.",
         function() return tostring(ns.stats.casts + ns.stats.groupCasts) end)
     Counter("Confirmed", "Casts confirmed by an aura or the Blizzard feed.",
@@ -1432,7 +1453,7 @@ local function Build()
     -- commands and the tracking commands, each a line of text: what it does,
     -- then how in grey.
     local Control = page.Note
-    page.Help(function() return "10 controls · 11 commands" end,
+    page.Help(function() return "11 controls · 12 commands" end,
         "What the mouse does on the target display and on this page, and the chat shortcuts. Hover a line for more.")
     page.Topic("Mouse")
     Control("Move the target display", "Drag the blue strip above it", "With Lock target display off, a thin blue strip sits above the target display: drag it, or the icons under it, to move the display. Not in combat.")
@@ -1440,6 +1461,7 @@ local function Build()
     Control("Default icon size", "Double-click the corner dots", "Puts Target icon size back to its default.")
     Control("Lock the target display", "Right-click the unlocked display", "Locks the target display in place again, like turning Lock target display on. Locked, it shows only its icons and lets clicks through.")
     Control("Quick settings", "The gear on the strip", "Lock, icon size, icon style and what to show in a short menu, ending in All options... for this page.")
+    Control("Move the friendly display", "Drag the blue strip above it", "With Lock target display off, the friendly display shows a blue strip too, with a sample row when nobody has DR: drag it to move the display, right-click it to lock. Not in combat.")
     Control("Icon details", "Hover a target display icon", "Applications, time to reset, last spell and which evidence produced it.")
     Control("Pick from a list", "Click a value with many choices", "A value button with four or more choices (the custom spell's category) opens a list under it; click a row to pick it; a click anywhere else, or Escape out of combat, closes the list.")
     Control("Next or previous value", "2 or 3 choices: click; right-click goes back", "A value button with two or three choices steps to its next choice, or back to the one before.")
@@ -1457,6 +1479,7 @@ local function Build()
 
     page.Topic("Tracking commands")
     Control("Forget tracked DR", "/drpulse clear", "Forgets every tracked DR, like Clear tracked DR.")
+    Control("Friendly DR on or off", "/drpulse friendly", "Turns Track friendly DR on or off.")
     Control("Show every category", "/drpulse all", "Turns Only CC I can apply off.")
     Control("Only what you can apply", "/drpulse mine", "Turns Only CC I can apply on.")
     Control("Status report", "/drpulse status", "Prints the version, build and what the addon sees, like Print status to chat.")

@@ -18,7 +18,8 @@ local MISSES = { MISS = true, RESIST = true, DODGE = true, PARRY = true, EVADE =
 
 ns.stats = { native = 0, nativePublic = 0, nativePartial = 0, nativeSecret = 0, nativeOpaque = 0,
     nativeUnknownCategory = 0, auraApplied = 0, auraEnded = 0, casts = 0, groupCasts = 0,
-    confirmed = 0, assumed = 0, notLanded = 0, immuneHits = 0, signals = 0 }
+    confirmed = 0, assumed = 0, notLanded = 0, immuneHits = 0, signals = 0,
+    friendlyAuras = 0, lossApplied = 0 }
 ns.nativeStatus = "not started"
 ns.nativeMode = "none seen"
 ns.samples = {}
@@ -66,6 +67,38 @@ function ns.ReadEnemy(unit)
     local guid = UnitGUID(unit)
     if ns.Text(guid) then return guid, isPlayer end
     if isPlayer and not ns.Public(guid) then return NameKey(unit), isPlayer end
+end
+
+-- Friendly tracking: you and your party. Their GUIDs are normally public; a
+-- secret one falls back to the full name, as for an enemy player.
+ns.FRIEND_UNITS = { "player", "party1", "party2", "party3", "party4" }
+local isFriendUnit = {}
+for _, unit in ipairs(ns.FRIEND_UNITS) do isFriendUnit[unit] = true end
+function ns.IsFriendUnit(unit) return isFriendUnit[unit] == true end
+
+function ns.ReadFriend(unit)
+    if not isFriendUnit[unit] then return end
+    local exists = UnitExists(unit)
+    if not ns.Bool(exists) or not exists then return end
+    local isPlayer = UnitIsPlayer(unit)
+    if not ns.Bool(isPlayer) or not isPlayer then return end
+    local guid = UnitGUID(unit)
+    if ns.Text(guid) then return guid, true end
+    if not ns.Public(guid) then return NameKey(unit), true end
+end
+
+-- Whether friendly tracking covers this unit now.
+function ns.FriendlyOn(unit)
+    local db = ns.db
+    if not (db and db.enabled and db.friendly and isFriendUnit[unit]) then return false end
+    return unit ~= "player" or db.friendlyPlayer
+end
+
+-- The tracker key for a watched unit: friendly units through ReadFriend,
+-- everything else (target, focus, nameplates) through ReadEnemy.
+local function ReadUnit(unit)
+    if isFriendUnit[unit] then return ns.ReadFriend(unit) end
+    return ns.ReadEnemy(unit)
 end
 
 local function UnitForGUID(guid)
@@ -176,7 +209,7 @@ local function OnNative(unit, info)
     if not ns.GetSource("native") then return end
     local stats, now = ns.stats, Now()
     stats.native = stats.native + 1
-    local guid = ns.ReadEnemy(unit)
+    local guid = ReadUnit(unit)
     if not ns.Public(info) or type(info) ~= "table" then
         stats.nativeOpaque = stats.nativeOpaque + 1
         if ns.nativeMode ~= "public" then ns.nativeMode = "opaque (event only)" end
@@ -331,7 +364,10 @@ end
 function ns.InvalidateReadable() readable = nil end
 
 local function ScanUnit(unit, now, ids)
-    local guid, isPlayer = ns.ReadEnemy(unit)
+    local guid, isPlayer = ReadUnit(unit)
+    -- CC on a friend always comes from someone else (an enemy), so the
+    -- group-source rule for foreign casters does not apply to them.
+    local friend = isFriendUnit[unit]
     if not guid then auraUnits[unit] = nil; return end
     local state = auraUnits[unit]
     local baseline = false
@@ -372,7 +408,7 @@ local function ScanUnit(unit, now, ids)
             if baseline and existing and existing.active then
                 -- Already tracked through another token of the same enemy.
                 existing.lastKey = existing.lastKey or key
-            elseif not (foreign and not ns.GetSource("group")) then
+            elseif friend or not (foreign and not ns.GetSource("group")) then
                 local applied = now
                 if a.expires and a.duration then
                     local start = a.expires - a.duration
@@ -385,11 +421,14 @@ local function ScanUnit(unit, now, ids)
                         local ratio = a.duration / full
                         if ratio <= 0.35 then hint = 3 elseif ratio <= 0.62 then hint = 2 end
                     end
-                    ns.Learn(a.id, a.duration)
+                    -- Learned durations stay what they were: full lengths
+                    -- seen on enemy players.
+                    if not friend then ns.Learn(a.id, a.duration) end
                 end
                 ns.tracker:Apply(guid, a.category, applied, { source = "aura", confirmed = true,
                     spellID = a.id, expires = a.expires, stageHint = hint, key = key })
-                ns.stats.auraApplied = ns.stats.auraApplied + 1
+                if friend then ns.stats.friendlyAuras = ns.stats.friendlyAuras + 1
+                else ns.stats.auraApplied = ns.stats.auraApplied + 1 end
                 ConfirmPending(guid, a.category, now)
             end
         end
@@ -478,6 +517,94 @@ local function Unwatch(unit)
 end
 function ns.WatchedUnits() return watchers end
 
+-- Friendly watchers -------------------------------------------------------------
+
+-- Watches the friendly units friendly tracking covers and drops the rest.
+-- A party token can name someone else after a roster change; ScanUnit
+-- notices the new GUID and starts that unit's aura history afresh.
+function ns.UpdateFriendWatchers()
+    for _, unit in ipairs(ns.FRIEND_UNITS) do
+        if ns.FriendlyOn(unit) and ns.ReadFriend(unit) then
+            if watchers[unit] then QueueScan(unit) else Watch(unit) end
+        else
+            Unwatch(unit)
+        end
+    end
+end
+
+-- Loss of control on you ----------------------------------------------------------
+
+-- Forever keeps loss-of-control data readable for the active player
+-- (SecretWhenLossOfControlInfoRestricted: secret only for other units), so
+-- your own CC has exact spell, start and duration even where auras are
+-- secret. The spell's catalog category is used; without one, only the
+-- effect types that map to a single DR category count.
+local LOSS_CATEGORY = { STUN_MECHANIC = "Stun", ROOT = "Root", SILENCE = "Silence", DISARM = "Disarm" }
+local MAX_LOSS = 20
+local lossState = { effects = {} }
+
+local function LossEffects(guid)
+    local current = {}
+    local count = C_LossOfControl.GetActiveLossOfControlDataCountByUnit("player")
+    if not ns.Number(count, 0) then return current end
+    for index = 1, math.min(count, MAX_LOSS) do
+        local data = C_LossOfControl.GetActiveLossOfControlDataByUnit("player", index)
+        if ns.Public(data) and type(data) == "table" then
+            local id = ns.Number(data.spellID, 1) and data.spellID or nil
+            local category = id and ns.CategoryOf(id)
+            if not category and ns.Text(data.locType) then category = LOSS_CATEGORY[data.locType] end
+            if category then
+                local start = ns.Number(data.startTime, 0) and data.startTime or nil
+                local duration = ns.Number(data.duration, 0.01, 3600) and data.duration or nil
+                -- The aura source keys the same effect by its instance, so
+                -- either source's end closes it.
+                local instance = data.auraInstanceID
+                local key = guid .. (ns.Number(instance, 1) and (":i" .. instance)
+                    or (":l" .. tostring(id or data.locType) .. ":" .. string.format("%.2f", start or 0)))
+                if not current[key] then
+                    current[key] = { id = id, category = category, start = start, duration = duration }
+                end
+            end
+        end
+    end
+    return current
+end
+
+local function ScanLoss()
+    local guid = ns.ReadFriend("player")
+    if not guid or not ns.FriendlyOn("player") or not ns.GetSource("loss") then
+        lossState = { effects = {} }
+        return
+    end
+    if lossState.guid ~= guid then lossState = { guid = guid, effects = {} } end
+    local now = Now()
+    local current = LossEffects(guid)
+    for key, old in pairs(lossState.effects) do
+        if not current[key] then
+            lossState.effects[key] = nil
+            ns.tracker:End(guid, old.category, now, key)
+        end
+    end
+    for key, e in pairs(current) do
+        if not lossState.effects[key] then
+            lossState.effects[key] = e
+            local applied, expires = now, nil
+            if e.start and e.start <= now + 0.1 and e.start >= now - 120 then applied = math.min(e.start, now) end
+            if e.duration then expires = applied + e.duration end
+            local hint
+            local full = e.id and e.duration and ns.Learned(e.id)
+            if full then
+                local ratio = e.duration / full
+                if ratio <= 0.35 then hint = 3 elseif ratio <= 0.62 then hint = 2 end
+            end
+            ns.tracker:Apply(guid, e.category, applied, { source = "loss", confirmed = true,
+                spellID = e.id, expires = expires, stageHint = hint, key = key })
+            ns.stats.lossApplied = ns.stats.lossApplied + 1
+        end
+    end
+    ns.RequestRefresh()
+end
+
 -- Casts --------------------------------------------------------------------
 
 local function OnSent(unit, castGUID)
@@ -536,6 +663,7 @@ function ns.QueueMine()
     end)
 end
 
+local lossEvents = { LOSS_OF_CONTROL_ADDED = true, LOSS_OF_CONTROL_UPDATE = true }
 local mineEvents = { SPELLS_CHANGED = true, BAG_UPDATE_DELAYED = true, PLAYER_TALENT_UPDATE = true,
     CHARACTER_POINTS_CHANGED = true }
 local restrictionEvents = { ADDON_RESTRICTION_STATE_CHANGED = true, PLAYER_REGEN_DISABLED = true, PLAYER_REGEN_ENABLED = true }
@@ -550,6 +678,7 @@ function ns.ClearTracking()
     ns.tracker:Clear()
     for _, p in ipairs(pending) do p.done = true end
     pending, sent, auraUnits, nativeGuids, ns.secretImmune = {}, {}, {}, {}, {}
+    lossState = { effects = {} }
     for unit in pairs(watchers) do QueueScan(unit) end
     ns.RequestRefresh()
 end
@@ -568,6 +697,8 @@ function ns.StartSources()
     end
     Register(frame, "UNIT_SPELLCAST_SENT", "player")
     Register(frame, "UNIT_PET", "player")
+    for event in pairs(lossEvents) do Register(frame, event, "player") end
+    Register(frame, "GROUP_ROSTER_UPDATE")
     for event in pairs(mineEvents) do Register(frame, event) end
     for event in pairs(restrictionEvents) do Register(frame, event) end
     Register(frame, "CVAR_UPDATE")
@@ -588,6 +719,11 @@ function ns.StartSources()
             auraUnits.target = nil
             QueueScan("target")
             ns.RequestRefresh()
+        elseif lossEvents[event] then
+            if ns.db.enabled then ScanLoss() end
+        elseif event == "GROUP_ROSTER_UPDATE" then
+            ns.UpdateFriendWatchers()
+            ns.RequestRefresh()
         elseif event == "PLAYER_FOCUS_CHANGED" then
             auraUnits.focus = nil
             QueueScan("focus")
@@ -596,8 +732,9 @@ function ns.StartSources()
             -- would otherwise accumulate per GUID for the whole session.
             nativeGuids = {}
             for unit in pairs(watchers) do
-                if unit ~= "target" and unit ~= "focus" then Unwatch(unit) end
+                if unit ~= "target" and unit ~= "focus" and not isFriendUnit[unit] then Unwatch(unit) end
             end
+            ns.UpdateFriendWatchers()
             for _, plate in ipairs(C_NamePlate.GetNamePlates()) do
                 if not plate:IsForbidden() and ns.Text(plate.unitToken) then Watch(plate.unitToken) end
             end
@@ -612,6 +749,7 @@ function ns.StartSources()
     end)
     Watch("target")
     Watch("focus")
+    ns.UpdateFriendWatchers()
     for _, plate in ipairs(C_NamePlate.GetNamePlates()) do
         if not plate:IsForbidden() and ns.Text(plate.unitToken) then Watch(plate.unitToken) end
     end
@@ -626,10 +764,15 @@ ns.OnSettingChanged(function(key)
         ns.RescanAll()
     end
     if key == "sources" or key == "enabled" then ns.KeepBlizzardOn() end
+    if key == "friendly" or key == "friendlyPlayer" or key == "enabled" then
+        ns.UpdateFriendWatchers()
+        ScanLoss()
+    end
+    if key == "sources" then ScanLoss() end
     if key == "custom" or key == "items" then ns.QueueMine() end
 end)
 
 -- Test hooks: expose internal entry points without adding globals.
 ns._test = { OnNative = OnNative, OnSucceeded = OnSucceeded, OnSent = OnSent, Resolve = Resolve,
-    OnCombatFeedback = OnCombatFeedback, RunScans = RunScans, Watch = Watch, Unwatch = Unwatch,
+    OnCombatFeedback = OnCombatFeedback, RunScans = RunScans, Watch = Watch, Unwatch = Unwatch, ScanLoss = ScanLoss,
     Pending = function() return pending end }

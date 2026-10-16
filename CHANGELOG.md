@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0-beta.6-friendly.1 - October 16, 2026
+
+- Add friendly DR tracking: DR on you and party1 to party4, in a new movable friendly display with one row per player (name in class colour, then their DR icons), hidden while nobody has DR and moving and locking with the target display.
+- Add Loss of control on you as a tracking source: your own CC with exact spell, start and length, readable on Forever even where CC auras are secret.
+- Read CC auras and Blizzard DR updates on party members; CC from enemies counts on friends whatever the group-source setting.
+- Add Friendly DR settings (on/off, include yourself, icon size), a Friendly CC diagnostics counter, `/drpulse friendly`, and friendly lines in `/drpulse status`.
+- Learned spell durations still come from enemy players only.
+
 ## 2.0.0-beta.6 - October 16, 2026
 
 - Add an icon font selector: Game default, Friz Quadrata, Arial Narrow, Morpheus and Skurri, applied to timers and stack text on the target and nameplates.

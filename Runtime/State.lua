@@ -1,7 +1,7 @@
 -- Adapted from Forever DR Store.lua (MIT, Copyright 2026 Tarolg).
 -- Drpulse integration and visual adaptations: Copyright 2026 Joaqoz.
 local _, ns = ...
-ns.VERSION = "2.0.0-beta.6"
+ns.VERSION = "2.0.0-beta.6-friendly.1"
 ns.SCHEMA = 1
 
 -- Display order. Keys are the names of Enum.SpellDiminishCategory fields; the
@@ -41,7 +41,7 @@ function ns.Bool(value)
     return ns.Public(value) and type(value) == "boolean"
 end
 
-local sources = { native = true, auras = true, casts = true, group = true, feedback = true, assume = true }
+local sources = { native = true, auras = true, casts = true, group = true, feedback = true, assume = true, loss = true }
 ns.SOURCE_KEYS = sources
 local defaults = {
     enabled = true, target = true, nameplates = true, npcs = false, locked = true,
@@ -50,12 +50,15 @@ local defaults = {
     font = "default",
     stackStyle = "pips", timer = true, swipe = true, iconSource = "spell",
     chat = true,
+    -- Friendly tracking: DR on you and your party, in its own display.
+    friendly = true, friendlyPlayer = true, friendlyX = 0, friendlyY = -240, friendlySize = 26,
 }
 -- Options with a fixed range or value set. Colors are fixed by meaning.
 local rules = {
     x = { -3000, 3000 }, y = { -3000, 3000 }, resetTime = { 10, 30 },
     iconSize = { 16, 64 }, plateSize = { 12, 40 }, plateOffset = { -40, 60 },
     plateX = { -300, 300 }, plateY = { -300, 300 },
+    friendlyX = { -3000, 3000 }, friendlyY = { -3000, 3000 }, friendlySize = { 16, 64 },
     font = { default = true, friz = true, arial = true, morpheus = true, skurri = true },
     filter = { mine = true, all = true }, plateAnchor = { TOP = true, BOTTOM = true },
     stackStyle = { pips = true, number = true, next = true }, iconSource = { spell = true, category = true },
@@ -241,7 +244,7 @@ function ns.Learned(id) return ns.db and ns.db.learned[id] end
 
 function ns.ResetDisplaySettings()
     if not ns.db then return end
-    for _, key in ipairs({ "iconSize", "plateSize", "plateOffset", "plateAnchor", "plateX", "plateY", "font", "stackStyle", "timer", "swipe", "iconSource" }) do
+    for _, key in ipairs({ "iconSize", "plateSize", "plateOffset", "plateAnchor", "plateX", "plateY", "font", "stackStyle", "timer", "swipe", "iconSource", "friendlySize" }) do
         ns.db[key] = defaults[key]
     end
     Changed("appearance")
@@ -249,5 +252,6 @@ end
 function ns.ResetPosition()
     if not ns.db then return end
     ns.db.x, ns.db.y = defaults.x, defaults.y
+    ns.db.friendlyX, ns.db.friendlyY = defaults.friendlyX, defaults.friendlyY
     Changed("position")
 end
