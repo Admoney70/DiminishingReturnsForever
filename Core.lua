@@ -9,7 +9,7 @@ local Util = ns.Util
 -- list is stale: WoW only reads the .toc at client launch, so new files
 -- require a full restart, not a /reload.
 if not Util then
-  print("|cffff0000MidnightDiminish:|r core files failed to load. Fully restart the game client (a /reload is not enough after an addon update).")
+  print("|cffff0000DR Forever:|r core files failed to load. Fully restart the game client (a /reload is not enough after an addon update).")
   return
 end
 
@@ -17,13 +17,13 @@ local LS = LibStub
 local AceAddon = LS and LS("AceAddon-3.0", true)
 local AceDB    = LS and LS("AceDB-3.0", true)
 if not (AceAddon and AceDB) then
-  print("MidnightDiminish: embedded Ace3 libs missing. Check .toc load order.")
+  print("DR Forever: embedded Ace3 libs missing. Check .toc load order.")
   return
 end
 
-local Core = AceAddon:NewAddon("MidnightDiminish", "AceEvent-3.0", "AceConsole-3.0")
+local Core = AceAddon:NewAddon("DiminishingReturnsForever", "AceEvent-3.0", "AceConsole-3.0")
 ns.Core = Core
-_G.MidnightDiminish = Core
+_G.DiminishingReturnsForever = Core
 
 local MODULE_NAMES = { "TargetandFocus", "WorldDR", "BlitzDR" }
 
@@ -189,7 +189,7 @@ end
 -- ─────────────────────────────────────────────────────────────────────────────
 
 function Core:OnInitialize()
-  self.arenaDB = AceDB:New("MidnightDiminishArenaDB", { profile = { arena = defaults.profile.arena } })
+  self.arenaDB = AceDB:New("DiminishingReturnsForeverDB", { profile = { arena = defaults.profile.arena } })
   ns.arenaDB = self.arenaDB
 
   if self.arenaDB.RegisterCallback then

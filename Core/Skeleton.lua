@@ -1,4 +1,4 @@
--- Skeleton for MidnightDiminish
+-- Skeleton for Diminishing Returns Forever (from MidnightDiminish)
 
 local addonName, ns = ...
 ns = ns or {}

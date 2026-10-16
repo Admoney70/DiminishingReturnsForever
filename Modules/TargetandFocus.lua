@@ -634,7 +634,13 @@ local function GetArenaMember(i)
   return _G["CompactArenaFrameMember" .. tostring(i)]
 end
 
+-- Clients without Blizzard's arena frames (WoW Forever) get our own trays
+-- instead; see Modules/NativeTray.lua.
+local NativeTray = ns.NativeTray
+local useNativeTrays = NativeTray and NativeTray:IsNeeded() or false
+
 local function GetDRTray(i)
+  if useNativeTrays then return NativeTray:Get(i) end
   local member = GetArenaMember(i)
   if not member or IsForbidden(member) then return nil end
   local tray = SafeIndex(member, "SpellDiminishStatusTray")
@@ -1190,7 +1196,6 @@ local function InstallTrayHook()
 end
 
 local function UpdateLiveIdx(i)
-  local unit    = "arena" .. tostring(i)
   local echoIdx = i + ECHO_OFFSET
 
   -- Hook first, whether or not this enemy is shown anywhere right now.
@@ -1502,7 +1507,7 @@ local function UpdateAll()
     local ok, err = pcall(UpdateLiveIdx, i)
     if not ok and not Arena._mdr_warned then
       Arena._mdr_warned = true
-      print("|cffff0000MidnightDiminish:|r DR update error: " .. tostring(err))
+      print("|cffff0000DR Forever:|r DR update error: " .. tostring(err))
     end
   end
 end
@@ -1541,6 +1546,14 @@ function Arena:EnsureInit()
   end
 
   self._mdr_initialized = true
+
+  if useNativeTrays then
+    -- Hook each item the moment it is built, before its first DR is shown.
+    NativeTray:Init({ onNewItem = HookTrayItemNow, resetTime = DRResetTime })
+    -- Create the trays now so they listen from the start, not only once the
+    -- first arena update has run.
+    for idx = 1, 5 do NativeTray:Get(idx) end
+  end
 
   InstallTrayHook()
   self:RegisterEvent("ADDON_LOADED", function() InstallTrayHook() end)
@@ -1636,7 +1649,7 @@ end
 
 -- Prints diagnostic info for the /dr debug command.
 function Arena:Debug()
-  print("|cff00ff00MidnightDiminish:|r arena DR diagnostic")
+  print("|cff00ff00DR Forever:|r arena DR diagnostic")
   pcall(ResolveBridgeOwners)
   print(("  bridge owners: target=%s focus=%s"):format(
     tostring(BRIDGE_OWNER.target), tostring(BRIDGE_OWNER.focus)))
@@ -1645,6 +1658,10 @@ function Arena:Debug()
   print(("  CVars: enemiesEnabled=%s onlyMine=%s"):format(
     ok1 and tostring(v1) or "?", ok2 and tostring(v2) or "?"))
   print("  in arena instance: " .. tostring(IsArenaInstance()))
+  local okS, supported = pcall(C_SpellDiminish and C_SpellDiminish.IsSystemSupported)
+  print(("  DR trays: %s | DR system supported=%s"):format(
+    useNativeTrays and "own (no Blizzard arena frames)" or "Blizzard arena frames",
+    okS and tostring(supported) or "?"))
   print(("  target: name=%s guid=%s | focus: name=%s guid=%s"):format(
     tostring(SafeUnitName("target")), tostring(SafeUnitGUID("target") ~= nil),
     tostring(SafeUnitName("focus")),  tostring(SafeUnitGUID("focus") ~= nil)))

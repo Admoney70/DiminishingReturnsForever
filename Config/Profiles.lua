@@ -148,7 +148,7 @@ function M:Build(panel)
 	copyBtn:SetScript("OnClick", function()
 		local from = profileUI.copyFrom or ""
 		if from == "" then return end
-		StaticPopup_Show("MIDNIGHTDIMINISH_CONFIRM", "Copy profile '" .. from .. "' into the current profile?", nil, {
+		StaticPopup_Show("DRFOREVER_CONFIRM", "Copy profile '" .. from .. "' into the current profile?", nil, {
 			OnYes = function()
 				Core:CopyUnifiedProfile(from)
 				if ns.Config and ns.Config.RefreshAll then
@@ -165,7 +165,7 @@ function M:Build(panel)
 	resetBtn:SetPoint("TOP", copyBtn, "BOTTOM", 0, -10)
 	resetBtn:SetText("Reset Current to Defaults")
 	resetBtn:SetScript("OnClick", function()
-		StaticPopup_Show("MIDNIGHTDIMINISH_CONFIRM", "Reset current profile to defaults?", nil, {
+		StaticPopup_Show("DRFOREVER_CONFIRM", "Reset current profile to defaults?", nil, {
 			OnYes = function()
 				Core:ResetUnifiedProfile()
 				if ns.Config and ns.Config.RefreshAll then
@@ -226,7 +226,7 @@ function M:Build(panel)
 			mini:Notify("Cannot delete the active profile.")
 			return
 		end
-		StaticPopup_Show("MIDNIGHTDIMINISH_CONFIRM", "Delete profile '" .. name .. "'?", nil, {
+		StaticPopup_Show("DRFOREVER_CONFIRM", "Delete profile '" .. name .. "'?", nil, {
 			OnYes = function()
 				Core:DeleteUnifiedProfile(name)
 				profileUI.deleteName = ""

@@ -1076,7 +1076,7 @@ function BDR:OnConfigChanged()
 end
 
 function BDR:Debug()
-  print("|cff00ff00MidnightDiminish:|r Blitz/BG DR diagnostic")
+  print("|cff00ff00DR Forever:|r Blitz/BG DR diagnostic")
   print(("  in battleground: %s   detection active: %s"):format(
     tostring(InBattleground()), tostring(DetectionActive())))
   local rows = 0

@@ -56,7 +56,7 @@ local function GetOrCreateProfileIOWindow()
 
 	local mini = ns.Framework
 
-	local win = CreateFrame("Frame", "MidnightDiminishProfileIOWindow", UIParent, "BackdropTemplate")
+	local win = CreateFrame("Frame", "DiminishingReturnsForeverProfileIOWindow", UIParent, "BackdropTemplate")
 	win:SetSize(500, 240)
 	win:SetFrameStrata("DIALOG")
 	win:SetClampedToScreen(true)
@@ -161,7 +161,6 @@ end
 function M:Build(panel)
 	local mini = ns.Framework
 	local Core = ns.Core
-	local contentWidth = mini.ContentWidth or 600
 	local verticalSpacing = mini.VerticalSpacing
 
 	-- Color Scheme picker
@@ -287,7 +286,7 @@ function M:Build(panel)
 			mini:NotifyCombatLockdown()
 			return
 		end
-		StaticPopup_Show("MIDNIGHTDIMINISH_CONFIRM", "Are you sure you wish to reset to factory settings?", nil, {
+		StaticPopup_Show("DRFOREVER_CONFIRM", "Are you sure you wish to reset to factory settings?", nil, {
 			OnYes = function()
 				Core:ResetUnifiedProfile()
 				if ns.Config and ns.Config.RefreshAll then

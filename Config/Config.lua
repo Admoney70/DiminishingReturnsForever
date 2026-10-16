@@ -7,19 +7,20 @@ ns.Config = ns.Config or {}
 
 local C = ns.Config
 
+local TITLE = "Diminishing Returns Forever"
+
 function C:Init()
 	local mini = ns.Framework
-	local Core = ns.Core
 
 	-- Register a minimal WoW settings entry for discoverability.
 	local redirectPanel = CreateFrame("Frame")
-	redirectPanel.name = ADDON
+	redirectPanel.name = TITLE
 
 	local category = mini:AddCategory(redirectPanel)
 	if category then
 		local redirectMsg = redirectPanel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 		redirectMsg:SetPoint("TOPLEFT", 16, -16)
-		redirectMsg:SetText("Use /dr to open the MidnightDiminish config window.")
+		redirectMsg:SetText("Use /dr to open the " .. TITLE .. " config window.")
 
 		local redirectBtn = CreateFrame("Button", nil, redirectPanel, "UIPanelButtonTemplate")
 		redirectBtn:SetSize(200, 26)
@@ -36,7 +37,7 @@ function C:Init()
 
 	local window = mini:CreateStandaloneWindow({
 		Name = ADDON .. "ConfigFrame",
-		Title = ADDON,
+		Title = TITLE,
 		Width = windowWidth,
 		Height = windowHeight,
 	})
@@ -125,7 +126,7 @@ function C:Init()
 	mini:ApplyTheme()
 
 	-- Confirmation dialog
-	StaticPopupDialogs["MIDNIGHTDIMINISH_CONFIRM"] = {
+	StaticPopupDialogs["DRFOREVER_CONFIRM"] = {
 		text = "%s",
 		button1 = YES,
 		button2 = NO,

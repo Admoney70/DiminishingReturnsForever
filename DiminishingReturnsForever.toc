@@ -1,9 +1,11 @@
-## Interface: 120105, 120100
-## Title: MidnightDiminish
-## Version: 3.1.2
-## Notes: Track DR on target and focus frames
-## SavedVariables: MidnightDiminishDB, MidnightDiminishArenaDB
+## Interface: 16001, 120105, 120100
+## Title: Diminishing Returns Forever
+## Version: @project-version@
+## Notes: Track DR on target and focus frames. A WoW Forever port of MidnightDiminish.
+## Author: admoney70 (port); splitheads (MidnightDiminish)
+## SavedVariables: DiminishingReturnsForeverDB
 ## IconTexture: 132298
+## Category: PvP
 
 # Libraries
 Libs\LibStub\LibStub.lua
@@ -28,6 +30,7 @@ Config\Profiles.lua
 Config\Config.lua
 
 # Feature modules
+Modules\NativeTray.lua
 Modules\TargetandFocus.lua
 Modules\WorldDR.lua
 Modules\BlitzDR.lua
