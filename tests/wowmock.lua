@@ -443,7 +443,8 @@ C_CVar = {
 }
 
 C_AddOns = { GetAddOnMetadata = function() return nil end, IsAddOnLoaded = function() return false end }
-C_NamePlate = { GetNamePlateForUnit = function() return nil end }
+M.plates = {}
+C_NamePlate = { GetNamePlateForUnit = function(unit) return M.plates[unit] end }
 C_Spell = {
 	GetSpellTexture = function(id) return 100000 + id end,
 	GetSpellName = function(id) return "Spell" .. id end,

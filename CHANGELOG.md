@@ -7,6 +7,7 @@
 - Read CC auras and Blizzard DR updates on party members; CC from enemies counts on friends whatever the group-source setting.
 - Add Friendly DR settings (on/off, include yourself, icon size), a Friendly CC diagnostics counter, `/drpulse friendly`, and friendly lines in `/drpulse status`.
 - Learned spell durations still come from enemy players only.
+- Track any friendly player you target, focus or see on a nameplate (for example a duel you watch): their DR shows on the target display and their nameplate, with every category unless set to Never.
 
 ## 2.0.0-beta.6 - October 16, 2026
 

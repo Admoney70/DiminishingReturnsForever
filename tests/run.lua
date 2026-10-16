@@ -164,16 +164,98 @@ test("a category set to Never is hidden", function()
 	M.Advance(30)
 end)
 
-test("friendly DR stays off the enemy target display", function()
+-- The target display's shown icons.
+local function TargetIcons()
+	local out = {}
+	if not ns.targetDisplay:IsShown() then return out end
+	for _, icon in ipairs(ns.targetDisplay.row._children) do
+		if icon:IsShown() then out[#out + 1] = icon end
+	end
+	return out
+end
+
+test("a targeted party member's DR shows in their row and on the target display, counted once", function()
 	M.units.target = M.units.party1
 	M.Fire("PLAYER_TARGET_CHANGED")
+	M.auras.target = M.auras.party1
 	M.AddAura("party1", HOJ, 6, 106)
+	M.Fire("UNIT_AURA", "target")
 	M.Advance(0.5)
-	assert(RowFor("Healer"), "friendly row")
-	eq(ns.targetDisplay:IsShown(), false, "target display")
+	eq(#RowFor("Healer").icons, 1, "friendly row")
+	local icons = TargetIcons()
+	eq(#icons, 1, "target display")
+	eq(icons[1].entry.count, 1, "one application, not two")
 	M.RemoveAura("party1", HOJ)
+	M.Fire("UNIT_AURA", "target")
+	M.auras.target = nil
 	M.units.target = nil
 	M.Fire("PLAYER_TARGET_CHANGED")
+	M.Advance(30)
+end)
+
+test("watching a duel: a friendly player you target shows on the target display", function()
+	M.units.duelist = { name = "Duelist", guid = "Player-20", enemy = false }
+	M.units.target = M.units.duelist
+	M.Fire("PLAYER_TARGET_CHANGED")
+	-- Polymorph isn't the test character's own CC; a friendly player's DR
+	-- shows whatever Only CC I can apply says.
+	M.AddAura("target", POLY, 6, 120)
+	M.Advance(0.5)
+	local icons = TargetIcons()
+	eq(#icons, 1, "target display")
+	eq(icons[1].entry.category, "Incapacitate")
+	eq(#Rows(), 0, "not a party row")
+	M.RemoveAura("target", POLY)
+	M.Advance(1)
+	M.AddAura("target", POLY, 3, 121)
+	M.Advance(0.5)
+	eq(TargetIcons()[1].entry.count, 2, "second application")
+	M.RemoveAura("target", POLY)
+end)
+
+test("the duelist's DR is kept when you look away and back", function()
+	M.units.target = nil
+	M.Fire("PLAYER_TARGET_CHANGED")
+	M.Advance(2)
+	eq(#TargetIcons(), 0, "no target")
+	M.units.target = M.units.duelist
+	M.Fire("PLAYER_TARGET_CHANGED")
+	M.Advance(0.5)
+	eq(TargetIcons()[1].entry.count, 2, "still tracked")
+	M.Advance(30)
+	eq(#TargetIcons(), 0, "reset")
+	M.units.target = nil
+	M.Fire("PLAYER_TARGET_CHANGED")
+end)
+
+test("a duelist on a friendly nameplate gets icons on the plate", function()
+	M.units.nameplate1 = M.units.duelist
+	local plate = M.New("Frame", UIParent)
+	M.plates = { nameplate1 = plate }
+	M.Fire("NAME_PLATE_UNIT_ADDED", "nameplate1")
+	M.AddAura("nameplate1", HOJ, 6, 122)
+	M.Advance(0.5)
+	local row
+	for _, child in ipairs(plate._children) do if child:IsShown() then row = child end end
+	assert(row, "plate row")
+	eq(row.icons[1].entry.category, "Stun")
+	M.RemoveAura("nameplate1", HOJ)
+	M.Fire("NAME_PLATE_UNIT_REMOVED", "nameplate1")
+	M.units.nameplate1 = nil
+	M.Advance(30)
+end)
+
+test("friendly players are not tracked with friendly tracking off", function()
+	ns.Set("friendly", false)
+	M.units.target = M.units.duelist
+	M.Fire("PLAYER_TARGET_CHANGED")
+	M.AddAura("target", HOJ, 6, 123)
+	M.Advance(0.5)
+	eq(#TargetIcons(), 0)
+	M.RemoveAura("target", HOJ)
+	M.units.target = nil
+	M.Fire("PLAYER_TARGET_CHANGED")
+	ns.Set("friendly", true)
 	M.Advance(30)
 end)
 

@@ -15,10 +15,11 @@ Icons use a dark navy frame, cyan accent, and a bottom status rail. The `~` pref
 
 ## Friendly DR tracking
 
-Drpulse tracks the DR enemies put on you and your party (party1 to party4), not only the DR you put on enemies.
+Drpulse tracks DR on friendly players, not only the DR you put on enemies: you, your party (party1 to party4), and any friendly player you target, focus or see on a nameplate.
 
 - **Friendly display.** A movable display with one row per player who has DR: their name in class colour, then their DR icons. It uses the same icons, stages, timers and tooltips as the target display, and is hidden while nobody has DR. It moves and locks with *Lock target display*; unlocked, it shows a blue strip to drag and a sample row.
 - **Your own DR comes from loss of control.** Forever keeps loss-of-control data readable for your own character (it is secret only for other units), so your stuns, roots and the rest arrive with exact spell, start and length even where CC auras are secret. A spell outside the catalog counts only when its effect type maps to a single DR category (stun, root, silence, disarm).
+- **Any friendly player you target, focus or see on a nameplate** is tracked too, for example both players in a duel you watch. Their DR shows on the target display and on their nameplate (turn on friendly nameplates to see it there).
 - **Party members' DR comes from readable CC auras** on them and from Blizzard's DR feed, if Forever sends it for friendly units. Where a CC aura is secret and the feed sends nothing, a party member's DR can't be seen.
 - Every category shows in the friendly display unless it is set to *Never* under Categories. *Only CC I can apply* does not apply here, because enemies apply this CC.
 - Settings: *General → Friendly DR* (on/off, include yourself, icon size), and *Detection → Tracking sources → Loss of control on you*. `/drpulse friendly` turns it on or off. `/drpulse status` lists the watched friendly units and counts.

@@ -83,8 +83,32 @@ function ns.ReadFriend(unit)
     local isPlayer = UnitIsPlayer(unit)
     if not ns.Bool(isPlayer) or not isPlayer then return end
     local guid = UnitGUID(unit)
-    if ns.Text(guid) then return guid, true end
-    if not ns.Public(guid) then return NameKey(unit), true end
+    if ns.Text(guid) then return guid, true, true end
+    if not ns.Public(guid) then return NameKey(unit), true, true end
+end
+
+-- Any other friendly player you target, focus or see on a nameplate, for
+-- example the players in a duel you watch. They are neither attackable by
+-- you nor in your party, so neither reader above takes them.
+function ns.ReadFriendlyPlayer(unit)
+    if not (ns.db and ns.db.enabled and ns.db.friendly) or not ns.Text(unit) then return end
+    local exists = UnitExists(unit)
+    if not ns.Bool(exists) or not exists then return end
+    local isPlayer = UnitIsPlayer(unit)
+    if not ns.Bool(isPlayer) or not isPlayer then return end
+    local hostile = UnitCanAttack("player", unit)
+    if not ns.Bool(hostile) or hostile then return end
+    local guid = UnitGUID(unit)
+    if ns.Text(guid) then return guid, true, true end
+    if not ns.Public(guid) then return NameKey(unit), true, true end
+end
+
+-- Target, focus and nameplates: an enemy, or with friendly tracking on a
+-- friendly player. The third value is true for a friendly player.
+function ns.ReadTracked(unit)
+    local guid, isPlayer = ns.ReadEnemy(unit)
+    if guid then return guid, isPlayer, false end
+    return ns.ReadFriendlyPlayer(unit)
 end
 
 -- Whether friendly tracking covers this unit now.
@@ -94,11 +118,12 @@ function ns.FriendlyOn(unit)
     return unit ~= "player" or db.friendlyPlayer
 end
 
--- The tracker key for a watched unit: friendly units through ReadFriend,
--- everything else (target, focus, nameplates) through ReadEnemy.
+-- The tracker key for a watched unit, whether it is friendly, and for
+-- target, focus and nameplates whether it is a player: party units through
+-- ReadFriend, everything else through ReadTracked.
 local function ReadUnit(unit)
     if isFriendUnit[unit] then return ns.ReadFriend(unit) end
-    return ns.ReadEnemy(unit)
+    return ns.ReadTracked(unit)
 end
 
 local function UnitForGUID(guid)
@@ -364,10 +389,10 @@ end
 function ns.InvalidateReadable() readable = nil end
 
 local function ScanUnit(unit, now, ids)
-    local guid, isPlayer = ReadUnit(unit)
-    -- CC on a friend always comes from someone else (an enemy), so the
-    -- group-source rule for foreign casters does not apply to them.
-    local friend = isFriendUnit[unit]
+    local guid, isPlayer, friend = ReadUnit(unit)
+    -- CC on a friendly player always comes from someone else (an enemy, or
+    -- a duel opponent), so the group-source rule for foreign casters does
+    -- not apply to them.
     if not guid then auraUnits[unit] = nil; return end
     local state = auraUnits[unit]
     local baseline = false
@@ -767,6 +792,8 @@ ns.OnSettingChanged(function(key)
     if key == "friendly" or key == "friendlyPlayer" or key == "enabled" then
         ns.UpdateFriendWatchers()
         ScanLoss()
+        -- Target, focus and nameplates may now read friendly players.
+        if key ~= "friendlyPlayer" then ns.RescanAll() end
     end
     if key == "sources" then ScanLoss() end
     if key == "custom" or key == "items" then ns.QueueMine() end

@@ -21,14 +21,7 @@ local sampleStart
 
 -- Friendly CC is applied by enemies, so "Only CC I can apply" has nothing to
 -- say about it: every category shows unless set to Never.
-local function Filter(list)
-    if not list then return nil end
-    local shown
-    for _, e in ipairs(list) do
-        if ns.GetCategoryMode(e.category) ~= "never" then shown = shown or {}; shown[#shown + 1] = e end
-    end
-    return shown
-end
+local function Filter(list) return ns.FilterEntries(list, true) end
 
 local function NameOf(unit)
     if unit == "player" then return "You" end

@@ -177,14 +177,19 @@ local function UpdateIcon(icon, e, guid, still)
     icon:Show()
 end
 
-local function Filter(list)
+-- friendly: a friendly player's DR, applied by others, so Only CC I can
+-- apply does not apply; every category shows unless set to Never.
+local function Filter(list, friendly)
     if not list then return nil end
     local shown
     for _, e in ipairs(list) do
-        if ns.ShouldShow(e.category) then shown = shown or {}; shown[#shown + 1] = e end
+        local show
+        if friendly then show = ns.GetCategoryMode(e.category) ~= "never" else show = ns.ShouldShow(e.category) end
+        if show then shown = shown or {}; shown[#shown + 1] = e end
     end
     return shown
 end
+ns.FilterEntries = Filter
 
 local function LayoutRow(row, entries, size, guid, tooltips, still)
     row.icons = row.icons or {}
@@ -585,8 +590,9 @@ local function RefreshTarget(now)
     local entries, guid
     local sampling = false
     if db.target then
-        guid = ns.ReadEnemy("target")
-        entries = Filter(ns.tracker:Snapshot(guid, now))
+        local friendly
+        guid, _, friendly = ns.ReadTracked("target")
+        entries = Filter(ns.tracker:Snapshot(guid, now), friendly)
         if not entries and (now < previewUntil or not db.locked) then
             entries, guid, sampling = Samples(now), nil, true
         end
@@ -644,8 +650,8 @@ local function RefreshPlates(now)
     if not ns.db.nameplates or not ns.db.enabled then return false end
     for unit in pairs(watched) do
         if unit:match("^nameplate%d+$") then
-            local guid = ns.ReadEnemy(unit)
-            local entries = guid and Filter(ns.tracker:Snapshot(guid, now))
+            local guid, _, friendly = ns.ReadTracked(unit)
+            local entries = guid and Filter(ns.tracker:Snapshot(guid, now), friendly)
             if entries then
                 local row = PlateRow(unit)
                 if row then
