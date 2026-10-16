@@ -1,0 +1,25 @@
+## Interface: 16001
+## Title: Drpulse |cff61dafbForever|r
+## Notes: Modern diminishing returns tracking for WoW: Forever.
+## Author: Joaqoz
+## Version: 2.0.0-beta.6
+## SavedVariables: DrpulseV2DB, DrpulseDB, DRiftDB
+## IconTexture: Interface\Icons\Spell_Frost_FrostNova
+## Category: PvP
+## X-Category: PvP
+## X-Game: Camelot
+## X-Family: Mainline
+## AllowLoadGameType: camelot
+## AddonCompartmentFunc: Drpulse_OnCompartmentClick
+
+Runtime\State.lua
+Runtime\SpellCatalog.lua
+Runtime\Controls.lua
+Runtime\Tracker.lua
+Runtime\Tracking.lua
+Runtime\Display.lua
+Runtime\Preview.lua
+Runtime\Settings.lua
+Runtime\Integration.lua
+Minimap.lua
+Runtime\Lifecycle.lua

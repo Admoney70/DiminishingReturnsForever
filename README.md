@@ -1,58 +1,43 @@
-# Diminishing Returns Forever
+# Drpulse — WoW: Forever
 
-Diminishing-returns (DR) icons on your **Target** and **Focus** frames for **World of Warcraft: Forever** (interface `16001`).
+Version 2.0.0-beta.6. Adaptation of Forever DR 0.8.0 (reference ZIP), licensed under MIT with attribution to Tarolg. Drpulse integration and blue theme by Joaqoz.
 
-This is a port of [MidnightDiminish](https://www.curseforge.com/wow/addons/midnightdiminish) 3.1.2 by splitheads (MIT). The features, options and look are the original's. The changes are what Forever needed, listed below. The first commit in this repository is the unmodified upstream release, so `git diff` against it shows the whole port.
+Icons use a dark navy frame, cyan accent, and a bottom status rail. The `~` prefix marks an estimated time until DR resets; it does not represent the remaining CC duration. This visual update keeps the beta.1 tracking engine unchanged.
 
 ## Features
 
-- **Arena DR**: icons on the Target and Focus frames for whichever arena enemy you have targeted or focused, with independent positions for each frame. They can go on nameplates instead, or on both.
-- **sArena-style borders**: green after the first application (the next one is halved), red after the second (the next one is immune), plus optional `1/2` and `2/2` text.
-- **World DR**: in the open world, tracks crowd control you land on your target.
-- **Blitz/battleground DR**: tracks your own crowd control on the Target and Focus frames in battlegrounds.
-- Options for icon size, spacing, grow direction, fonts, border style, cooldown swipe and the DR reset time, plus profiles with import/export. A test mode previews icons you can drag into place.
+- Complete reference engine: per-spell auras, public/partial/opaque native feed, your own casts, pets and group members, failure feedback, and estimates when no observable confirmation is available.
+- Target and nameplate displays, filters for your own categories, bag items, Auto/Always/Never category modes, and custom spells.
+- Learned durations, reset after CC ends, percentages/pips/count display, previews, context menu, and diagnostics.
+- Estimated indicators are grey and may represent a cast without confirmed impact. Disable them under Tracking sources → Show unconfirmed casts.
+- If the native feed is reported as unsupported, the remaining sources continue to work as in the reference addon.
+- Settings open in a standalone movable Drpulse window with fixed navigation, blue/cyan accents, and a selectable PayPal support link. The Drpulse minimap button remains available.
 
-## What was changed for Forever
+## Installation and migration
 
-1. **Arena DR works without Blizzard's arena frames.** The original copies the DR trays Blizzard attaches to its arena frames (`CompactArenaFrame`). Forever runs as the "camelot" game type, and its unit-frame `.toc` leaves `CompactArenaFrame` out, so those trays never exist and the original showed nothing in arenas.
-   [`Modules/NativeTray.lua`](Modules/NativeTray.lua) builds a tray of its own for each arena enemy, fed by the same `UNIT_SPELL_DIMINISH_CATEGORY_STATE_UPDATED` event, and the original code copies it unchanged. Where Blizzard's arena frames do exist (retail), they are still used.
-2. **Midnight "secret" values are handled.** If the DR timings or the immunity flag arrive secret, nothing passes them to an API that refuses secrets from add-on code: borders switch with `SetAlphaFromBoolean`, and the window is timed locally. An update whose category is secret is skipped, because there is no way to tell which icon it belongs to.
-3. **The `.toc` lists `16001`**, so Forever no longer flags the add-on as out of date. Retail interface numbers (`120105`, `120100`) are still listed.
-4. **Renamed**, with its own saved variables (`DiminishingReturnsForeverDB`), global, popup and window names, so it can't clash with an installed copy of MidnightDiminish. Settings are not imported from MidnightDiminish.
+Close WoW completely. Replace the `Drpulse` folder under `Interface/AddOns` with the folder from the ZIP, then launch the game again. Test each addon separately when comparing results.
 
-Everything else was checked against the Forever 1.60.1 client's UI source: every API function, event and frame template the add-on references exists there, as do the Target and Focus frames.
+The new runtime uses `DrpulseV2DB`. Existing `DrpulseDB` and `DRiftDB` data remains untouched. Compatible settings are migrated: size, reset window, visibility, categories, custom spells, center position, and minimap preferences. New tracking sources start with the reference defaults. The old standalone focus bar and history are not part of this runtime; focus remains a tracking source.
 
-## Installation
+## Commands
 
-1. Download or clone this repository.
-2. Copy it into `Interface/AddOns/` in your WoW Forever install and name the folder **`DiminishingReturnsForever`** (it must match the `.toc` file name).
-3. Restart the game client. A `/reload` does not pick up new add-on files.
+- `/drpulse`: open settings and list commands.
+- `/drpulse status`: print sources, counters, native data, and Blizzard options.
+- `/drpulse unlock` and `/drpulse lock`: move or lock the target display.
+- `/drpulse preview`: show a temporary preview.
+- `/drpulse clear`: clear current tracking data.
+- `/drpulse all` and `/drpulse mine`: switch the global category filter.
+- `/drpulse reset`: restore the target display position.
+- Minimap: left-click for settings, right-click to lock, drag to reposition.
 
-Packaged builds made with the BigWigs packager are named correctly via `.pkgmeta`.
+## Validation
 
-## Usage
+Twelve scenarios run against both the original ZIP and this adaptation: unsupported feed, repeated events, resistances, observable auras, pets/group, unconfirmed area effects, opaque events, secret identity, full names, expiry, duplicates, and restricted timing data.
 
-- `/dr`: open the options window (also listed under *Esc → Options → AddOns*)
-- `/dr debug`: arena diagnostics, including whether the add-on's own trays are in use and whether the client reports the DR system as supported
-- `/dr blitz`: battleground diagnostics
+Migration, data preservation, execution of both TOC module sets, and startup/command wiring are also checked. Startup tests replace visual constructors, so they do not validate pixels, taint, or the real client. This beta still requires in-game validation.
 
-The add-on turns on the game's `spellDiminishPVPEnemiesEnabled` setting (*Options → Gameplay → Spell Diminishing Returns*), which the DR event depends on.
+`Core.spec.lua` and `UI.spec.lua` cover the historical 1.x implementation, which remains in the repository but is not loaded or distributed with this beta.
 
-## Known limits
+## License
 
-- Arena DR depends on the Forever server sending DR updates for arena enemies (`arena1` to `arena5`). If icons never appear in an arena, run `/dr debug` there and check that the DR system is reported as supported.
-- When DR timings arrive secret, the window is re-timed from each update rather than read from the event, so it can run up to a couple of seconds long.
-- The DR rules themselves (reset time, two applications before immunity) follow retail Midnight. Forever's server may differ; the reset time can be changed under *Arena DR → Tracking*.
-
-## Development
-
-```sh
-luacheck .            # lint
-lua5.1 tests/run.lua  # tests against a small WoW API mock
-```
-
-`tests/widgetapi.lua` lists the widget methods of the Forever 1.60.1 client, generated from its API documentation. The mock accepts only those, so a call to a method Forever doesn't have fails the tests.
-
-## Credits
-
-MidnightDiminish by splitheads; this port keeps its MIT license (see [LICENSE](LICENSE)). The Ace3, LibStub and CallbackHandler libraries in `Libs/` are by their respective authors.
+MIT. `THIRD-PARTY-LICENSE.txt` preserves Tarolg's complete notice. Adapted modules include attribution. Reproducible import logic is in `scripts/import-reference.mts`; Drpulse-specific integrations are in `Runtime/Integration.lua`.

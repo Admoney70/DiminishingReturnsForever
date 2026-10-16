@@ -1,7 +1,0 @@
-package-as: DiminishingReturnsForever
-
-ignore:
-  - tests
-  - .github
-  - .luacheckrc
-  - README.md
