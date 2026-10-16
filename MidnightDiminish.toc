@@ -1,0 +1,33 @@
+## Interface: 120105, 120100
+## Title: MidnightDiminish
+## Version: 3.1.2
+## Notes: Track DR on target and focus frames
+## SavedVariables: MidnightDiminishDB, MidnightDiminishArenaDB
+## IconTexture: 132298
+
+# Libraries
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\AceDB-3.0\AceDB-3.0.xml
+Libs\AceAddon-3.0\AceAddon-3.0.xml
+Libs\AceEvent-3.0\AceEvent-3.0.xml
+Libs\AceConsole-3.0\AceConsole-3.0.xml
+
+# Core (shared helpers, UI framework, addon bootstrap)
+Core\Util.lua
+Core\CCData.lua
+Core\Skeleton.lua
+Core.lua
+
+# Configuration UI
+Config\General.lua
+Config\DRSettings.lua
+Config\WorldDRSettings.lua
+Config\BlitzDRSettings.lua
+Config\Profiles.lua
+Config\Config.lua
+
+# Feature modules
+Modules\TargetandFocus.lua
+Modules\WorldDR.lua
+Modules\BlitzDR.lua
